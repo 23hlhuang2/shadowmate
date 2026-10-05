@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>影随 ShadowMate · 英语口语影子跟读练习</title>
+<link rel="stylesheet" href="./styles.css">
+</head>
+<body>
+
+<header class="app-bar">
+  <div class="brand">
+    <span class="brand__mark">影</span>
+    <div>
+      <b>影随 ShadowMate</b>
+      <small>英语口语影子跟读练习</small>
+    </div>
+  </div>
+  <div class="app-bar__right">
+    <span class="provider-badge" id="providerBadge"><i></i><span id="providerText">检测中…</span></span>
+    <button type="button" class="btn btn--ghost btn--sm" id="newAudioBtn" hidden>换一段音频</button>
+  </div>
+</header>
+
+<main>
+
+  <!-- ================= 视图一：上传 ================= -->
+  <section class="view" id="viewUpload">
+    <div class="upload-head">
+      <h1>上传一段英文音频，开始逐句影子跟读</h1>
+      <p>系统会自动完成语音识别与分句，生成逐句练习单元；你逐句跟读录音后，会得到准确度、流利度、语调、完整性四个维度的评分与改进建议。</p>
+    </div>
+
+    <div class="dropzone" id="dz" tabindex="0" role="button" aria-label="拖拽音频文件到此处，或点击选择文件">
+      <svg class="dz-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <path d="M12 16V4m0 0L8 8m4-4 4 4"/><path d="M4 16v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"/>
+      </svg>
+      <p class="dz-title">拖拽音频文件到这里</p>
+      <p class="dz-sub">或</p>
+      <div class="dz-actions">
+        <button type="button" class="btn btn--primary" id="chooseBtn">选择文件</button>
+        <button type="button" class="btn btn--ghost" id="sampleBtn">使用示例音频</button>
+      </div>
+      <p class="dz-hint" id="dzHint">支持 MP3 / WAV / M4A，单个文件 ≤ 50MB，时长 30 秒 – 10 分钟</p>
+      <input type="file" id="fileInput" accept="audio/*,.mp3,.wav,.m4a" hidden>
+    </div>
+
+    <div class="alert" id="uploadAlert" hidden></div>
+
+    <div class="card" id="fileCard" hidden>
+      <div class="file-row">
+        <div class="file-ico" id="fileIco">mp3</div>
+        <div class="file-body">
+          <div class="file-name" id="fileName">—</div>
+          <div class="file-meta" id="fileMeta">—</div>
+        </div>
+      </div>
+      <div class="bar-track"><div class="bar-fill" id="upFill"></div></div>
+      <div class="file-status">
+        <span id="upStatus">准备上传</span>
+        <span id="upPct">0%</span>
+      </div>
+      <div class="file-actions">
+        <button type="button" class="btn btn--ghost btn--sm" id="cancelUploadBtn">取消</button>
+      </div>
+    </div>
+
+    <ul class="feature-hints">
+      <li><b>自带素材</b>播客、美剧、网课、真题音频，任何英文音频都能导入并自动分句。</li>
+      <li><b>逐句跟读</b>单句播放一遍即停，可切 0.75× / 1.0× / 1.25× 变速，录下你的跟读。</li>
+      <li><b>逐词反馈</b>不只是总分，而是指出哪个词拖低了整句分数，并给出可执行建议。</li>
+    </ul>
+  </section>
+
+  <!-- ================= 视图二：自动分句 ================= -->
+  <section class="view" id="viewSegment" hidden>
+    <div class="card seg-wrap">
+      <h2 id="segTitle">正在分析音频</h2>
+      <p id="segSubtitle">正在把整段音频切分成一句一句的练习单元，请稍候。</p>
+      <ul class="steps" id="segSteps">
+        <li data-step="1"><span class="dot"></span>上传音频<span class="st-time">已完成</span></li>
+        <li data-step="2"><span class="dot"></span>语音识别（ASR）转写文本<span class="st-time" id="st2">等待</span></li>
+        <li data-step="3"><span class="dot"></span>按语义与停顿切分句子<span class="st-time" id="st3">等待</span></li>
+        <li data-step="4"><span class="dot"></span>对齐时间轴，生成练习单元<span class="st-time" id="st4">等待</span></li>
+      </ul>
+      <div class="alert" id="segError" hidden></div>
+      <div class="file-actions" id="segErrorActions" hidden>
+        <button type="button" class="btn btn--primary" id="segRetryBtn">重新分句</button>
+        <button type="button" class="btn btn--ghost" id="segBackBtn">换一段音频</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= 视图三：练习工作区 ================= -->
+  <section class="view" id="viewWorkspace" hidden>
+    <div class="workspace">
+
+      <!-- 左：句子列表与进度 -->
+      <aside class="pane pane--list">
+        <div class="pane__head">
+          <div class="pane__title">
+            句子列表与进度
+            <span class="count" id="listCount">—</span>
+          </div>
+          <div class="progress-row">
+            <div class="track"><div class="fill" id="listFill"></div></div>
+            <span class="val" id="listVal">0 / 0</span>
+          </div>
+        </div>
+        <div class="pane__body">
+          <ul class="sent-list" id="sentList"></ul>
+        </div>
+      </aside>
+
+      <!-- 右：跟读练习 + 反馈 -->
+      <div>
+        <div class="pane">
+          <div class="pane__head">
+            <div class="pane__title">
+              跟读影子练习
+              <span class="count" id="paneCount">—</span>
+            </div>
+          </div>
+          <div class="pane__body">
+            <div class="practice-head">
+              <span class="p-idx" id="pIdx">#01</span>
+              <span class="p-text" id="pText">—</span>
+            </div>
+
+            <div class="player">
+              <div class="player-top">
+                <button type="button" class="play-btn" id="playBtn" aria-label="播放原声">
+                  <svg id="playIcon" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M8 5v14l11-7z"/></svg>
+                </button>
+                <div class="player-label"><b>原声</b>先听一遍，再跟着说</div>
+                <span class="player-time" id="playTime">0.0s / 0.0s</span>
+              </div>
+              <div class="track" id="playTrack">
+                <div class="track__bars" id="playBars"></div>
+                <div class="playhead" id="playhead"></div>
+              </div>
+              <div class="speed-row">
+                <span class="player-label">播放速度</span>
+                <div class="speed-group" id="speedGroup">
+                  <button type="button" data-speed="0.75">0.75×</button>
+                  <button type="button" data-speed="1" class="is-on">1.0×</button>
+                  <button type="button" data-speed="1.25">1.25×</button>
+                </div>
+                <span class="hint">点击波形可跳转播放位置</span>
+              </div>
+            </div>
+
+            <div class="recorder">
+              <div class="rec-top">
+                <button type="button" class="btn btn--record" id="recBtn">开始录音</button>
+                <div class="rec-meter" id="recMeter" aria-hidden="true"></div>
+                <span class="rec-timer" id="recTimer">0.0s</span>
+                <span class="rec-hint" id="recHint">点击按钮，跟读上面的句子</span>
+              </div>
+              <div class="rec-result" id="recResult" hidden>
+                <span class="badge">已录制 <b id="recDur">0.0s</b></span>
+                <button type="button" class="btn btn--ghost btn--sm" id="replayBtn">试听我的录音</button>
+                <button type="button" class="btn btn--primary btn--sm" id="submitBtn">提交评测</button>
+                <span class="rec-hint" id="submitHint"></span>
+              </div>
+            </div>
+
+            <!-- 反馈 -->
+            <div class="fb" id="fb">
+              <div class="empty-hint" id="fbEmpty">
+                完成一次跟读并点击「提交评测」，这里会显示四维评分、逐词反馈与改进建议。
+              </div>
+
+              <div id="fbPanel" hidden>
+                <div class="fb-top">
+                  <div class="score-hero">
+                    <div class="score-ring">
+                      <svg viewBox="0 0 148 148" aria-hidden="true">
+                        <circle class="ring-bg" cx="74" cy="74" r="62"></circle>
+                        <circle class="ring-fg" id="ringFg" cx="74" cy="74" r="62" stroke-dasharray="0 999"></circle>
+                      </svg>
+                      <div class="score-num"><b id="fbScore">0</b><span>综合得分</span></div>
+                    </div>
+                    <p class="score-verdict" id="fbVerdict">—</p>
+                  </div>
+                  <div class="dims" id="fbDims"></div>
+                </div>
+
+                <div class="fb-sub">
+                  <h4>逐词反馈</h4>
+                  <div class="word-chips" id="fbWords"></div>
+                  <div class="legend">
+                    <span><i style="background:#95d46b"></i>发音到位</span>
+                    <span><i style="background:#f4c560"></i>可改进</span>
+                    <span><i style="background:#ff9c96"></i>需重点纠正</span>
+                  </div>
+                </div>
+
+                <div class="fb-sub">
+                  <h4>改进建议</h4>
+                  <ul class="suggest-list" id="fbSuggest"></ul>
+                </div>
+
+                <div class="fb-actions">
+                  <button type="button" class="btn btn--ghost" id="fbRetryBtn">重练本句</button>
+                  <span class="spacer"></span>
+                  <button type="button" class="btn btn--primary" id="fbNextBtn">进入下一句</button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </section>
+
+</main>
+
+<audio id="audioEl" preload="auto"></audio>
+<audio id="recAudioEl" preload="auto"></audio>
+<div class="toast" id="toast" hidden role="status" aria-live="polite"></div>
+
+<script type="module" src="./js/app.js"></script>
+</body>
+</html>

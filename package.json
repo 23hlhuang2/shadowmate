@@ -1,0 +1,14 @@
+{
+  "name": "shadowmate",
+  "version": "1.0.0",
+  "private": true,
+  "description": "影随 ShadowMate — 英语口语影子跟读练习应用（零运行时依赖）",
+  "type": "module",
+  "engines": {
+    "node": ">=18"
+  },
+  "scripts": {
+    "start": "node server/index.js",
+    "dev": "node --watch server/index.js"
+  }
+}
