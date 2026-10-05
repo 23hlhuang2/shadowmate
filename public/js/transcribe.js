@@ -2,15 +2,17 @@
  * 浏览器本地语音识别（Whisper）。
  *
  * 为什么放浏览器：不需要任何云端凭据就能做真实识别，服务端因此可以继续保持零依赖。
- * 运行库与模型都按需从 CDN 拉取，首次使用需联网下载约 70MB，之后由浏览器缓存，可离线复用。
+ * 运行库与 ONNX WASM 运行时已随项目内置在 public/vendor/，浏览器只从本机服务端加载，
+ * 不依赖任何外部 CDN；识别模型（约 64MB）首次使用经服务端代理下载并缓存，之后可离线复用。
  * 识别结果只带词与时间戳，分句规则仍由服务端统一执行。
  */
 
 import { resample } from './wav.js';
 
-const LIB_VERSION = '3.7.6';
-const LIB_DIST = `https://cdn.jsdelivr.net/npm/@huggingface/transformers@${LIB_VERSION}/dist/`;
-const LIB_ENTRY = `${LIB_DIST}transformers.min.js`;
+// 运行库随项目内置，避免使用者所在网络访问不了外部 CDN 时无法识别。
+// 升级方式见 scripts/vendor-runtime.mjs。
+const VENDOR_DIR = new URL('../vendor/', import.meta.url).href;
+const LIB_ENTRY = `${VENDOR_DIR}transformers.min.js`;
 
 const FALLBACK_OPTIONS = {
   model: 'Xenova/whisper-tiny.en',
@@ -30,7 +32,7 @@ function loadLib() {
   if (!libPromise) {
     libPromise = import(LIB_ENTRY).catch((err) => {
       libPromise = null;
-      throw new Error(`无法加载本地识别运行库，请检查网络能否访问 CDN：${err.message}`);
+      throw new Error(`无法加载本地识别运行库（vendor/transformers.min.js），请确认服务端已启动且项目内含该文件：${err.message}`);
     });
   }
   return libPromise;
@@ -74,10 +76,10 @@ async function getPipeline(options, onLabel) {
     env.remotePathTemplate = `${proxyBase}/{model}/resolve/{revision}/`;
     try {
       if (env.backends && env.backends.onnx && env.backends.onnx.wasm) {
-        env.backends.onnx.wasm.wasmPaths = LIB_DIST;
+        env.backends.onnx.wasm.wasmPaths = VENDOR_DIR;
       }
     } catch {
-      /* 形状不符时保留运行库默认的 CDN 路径 */
+      /* 形状不符时保留运行库默认路径 */
     }
 
     return pipeline('automatic-speech-recognition', options.model, {

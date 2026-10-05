@@ -6,6 +6,10 @@ const MIME = {
   '.html': 'text/html; charset=utf-8',
   '.css': 'text/css; charset=utf-8',
   '.js': 'text/javascript; charset=utf-8',
+  // 内置的识别运行库（public/vendor）：.mjs 必须是 JS 类型，否则浏览器拒绝作为模块加载；
+  // .wasm 需为 application/wasm 才能走流式实例化。
+  '.mjs': 'text/javascript; charset=utf-8',
+  '.wasm': 'application/wasm',
   '.json': 'application/json; charset=utf-8',
   '.svg': 'image/svg+xml',
   '.png': 'image/png',

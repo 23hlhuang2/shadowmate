@@ -1,4 +1,4 @@
-const BASE = 'http://localhost:5173';
+const BASE = process.env.SMOKE_BASE || 'http://localhost:5173';
 
 function makeWav(seconds, sampleRate = 16000) {
   const samples = Math.floor(seconds * sampleRate);
@@ -195,6 +195,33 @@ const modelMissing = await call('GET /api/model/* 不存在的文件 → 404', a
   return body;
 });
 console.log('      code =', modelMissing?.error?.code);
+
+// 识别运行库内置在 public/vendor/，浏览器不再依赖外部 CDN；MIME 必须正确，否则模块无法执行。
+const vendorLib = await call('GET /vendor/transformers.min.js (内置运行库)', async () => {
+  const res = await fetch(`${BASE}/vendor/transformers.min.js`);
+  assert(res.status === 200, `status ${res.status}`);
+  assert((res.headers.get('content-type') || '').includes('text/javascript'), `content-type ${res.headers.get('content-type')}`);
+  const body = await res.text();
+  assert(body.includes('pipeline'), 'library bundle looks empty');
+  return body.length;
+});
+console.log('      bytes =', vendorLib);
+
+const vendorWasmLoader = await call('GET /vendor/ort-wasm-*.mjs (WASM 加载器 MIME)', async () => {
+  const res = await fetch(`${BASE}/vendor/ort-wasm-simd-threaded.jsep.mjs`);
+  assert(res.status === 200, `status ${res.status}`);
+  assert((res.headers.get('content-type') || '').includes('text/javascript'), `content-type ${res.headers.get('content-type')}`);
+  return res.headers.get('content-type');
+});
+console.log('      content-type =', vendorWasmLoader);
+
+const vendorWasm = await call('GET /vendor/ort-wasm-*.wasm (WASM 运行时 MIME)', async () => {
+  const res = await fetch(`${BASE}/vendor/ort-wasm-simd-threaded.jsep.wasm`, { method: 'HEAD' });
+  assert(res.status === 200, `status ${res.status}`);
+  assert(res.headers.get('content-type') === 'application/wasm', `content-type ${res.headers.get('content-type')}`);
+  return Number(res.headers.get('content-length'));
+});
+console.log('      bytes =', vendorWasm);
 
 const feedback = await call('POST /api/audios/:id/units/0/assess', async () => {
   const res = await fetch(`${BASE}/api/audios/${audio.id}/units/0/assess?duration=3.1`, {
